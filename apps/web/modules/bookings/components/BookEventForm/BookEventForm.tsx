@@ -34,6 +34,7 @@ type BookEventFormProps = {
   isPlatform?: boolean;
   isVerificationCodeSending: boolean;
   isTimeslotUnavailable: boolean;
+  isOutsideBusinessHours?: boolean;
   shouldRenderCaptcha?: boolean;
   confirmButtonDisabled?: boolean;
   classNames?: {
@@ -56,6 +57,7 @@ export const BookEventForm = ({
   isVerificationCodeSending,
   isPlatform = false,
   isTimeslotUnavailable,
+  isOutsideBusinessHours,
   shouldRenderCaptcha,
   confirmButtonDisabled,
   classNames,
@@ -170,6 +172,14 @@ export const BookEventForm = ({
                   ]}
                 />
               }
+            />
+          </div>
+        ) : isOutsideBusinessHours ? (
+          <div data-testid="outside-business-hours-warning">
+            <Alert
+              severity="warning"
+              title={t("outside_business_hours_title")}
+              message={t("outside_business_hours_description")}
             />
           </div>
         ) : null}

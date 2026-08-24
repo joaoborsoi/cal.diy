@@ -18,6 +18,7 @@ import { getQueryParam } from "@calcom/features/bookings/Booker/utils/query-para
 import { Header } from "@calcom/features/bookings/components/Header";
 import { BookerSection } from "@calcom/features/bookings/components/Section";
 import { Dialog } from "@calcom/features/components/controlled-dialog";
+import { isTimeOutsideWorkingHours } from "@calcom/lib/availability";
 import { scrollIntoViewSmooth } from "@calcom/lib/browser/browser.utils";
 import {
   CLOUDFLARE_SITE_ID,
@@ -238,6 +239,13 @@ const BookerComponent = ({
       })
     : [];
 
+  const isOutsideBusinessHours = useMemo(() => {
+    const workingHours = schedule?.data?.workingHours;
+    const organizerTimeZone = event.data?.schedule?.timeZone;
+    if (!selectedTimeslot || !workingHours || workingHours.length === 0 || !organizerTimeZone) return false;
+    return isTimeOutsideWorkingHours(selectedTimeslot, workingHours, organizerTimeZone);
+  }, [selectedTimeslot, schedule?.data?.workingHours, event.data?.schedule?.timeZone]);
+
   const slot = getQueryParam("slot");
 
   useEffect(() => {
@@ -276,6 +284,7 @@ const BookerComponent = ({
         errorRef={bookerFormErrorRef}
         errors={{ ...formErrors, ...errors }}
         isTimeslotUnavailable={unavailableTimeSlots.includes(selectedTimeslot || "")}
+        isOutsideBusinessHours={isOutsideBusinessHours}
         loadingStates={loadingStates}
         renderConfirmNotVerifyEmailButtonCond={renderConfirmNotVerifyEmailButtonCond}
         bookingForm={bookingForm}
@@ -310,6 +319,7 @@ const BookerComponent = ({
     shouldRenderCaptcha,
     isVerificationCodeSending,
     unavailableTimeSlots,
+    isOutsideBusinessHours,
   ]);
 
   /**

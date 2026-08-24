@@ -126,6 +126,29 @@ export function getWorkingHours(
   return workingHours;
 }
 
+/**
+ * Checks whether a given point in time falls outside the provided working hours
+ * (as returned by `getWorkingHours`), evaluated in the given timeZone.
+ */
+export function isTimeOutsideWorkingHours(
+  time: ConfigType,
+  workingHours: WorkingHours[],
+  timeZone: string
+): boolean {
+  if (!workingHours.length) return false;
+
+  const localTime = dayjs(time).tz(timeZone);
+  const day = localTime.day();
+  const minutesSinceMidnight = localTime.hour() * 60 + localTime.minute();
+
+  return !workingHours.some(
+    (range) =>
+      range.days.includes(day) &&
+      minutesSinceMidnight >= range.startTime &&
+      minutesSinceMidnight <= range.endTime
+  );
+}
+
 export function availabilityAsString(
   availability: Pick<Availability, "days" | "startTime" | "endTime">,
   { locale, hour12 }: { locale?: string; hour12?: boolean }

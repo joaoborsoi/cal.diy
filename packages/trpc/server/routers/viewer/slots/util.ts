@@ -830,7 +830,15 @@ export class AvailableSlotsService {
     /* We get all users working hours and busy slots */
     const allUsersAvailability = premappedUsersAvailability.map(
       (
-        { busy, dateRanges, oooExcludedDateRanges, currentSeats: _currentSeats, timeZone, datesOutOfOffice },
+        {
+          busy,
+          dateRanges,
+          oooExcludedDateRanges,
+          currentSeats: _currentSeats,
+          timeZone,
+          datesOutOfOffice,
+          workingHours,
+        },
         index
       ) => {
         const currentUser = users[index];
@@ -842,6 +850,7 @@ export class AvailableSlotsService {
           busy,
           user: currentUser,
           datesOutOfOffice,
+          workingHours,
         };
       }
     );
@@ -1429,6 +1438,8 @@ export class AvailableSlotsService {
 
     return {
       slots: filteredSlotsMappedToDate,
+      // Used to warn the booker when a slot falls outside the organizer's usual working hours.
+      workingHours: allUsersAvailability[0]?.workingHours,
       ...troubleshooterData,
     };
   }

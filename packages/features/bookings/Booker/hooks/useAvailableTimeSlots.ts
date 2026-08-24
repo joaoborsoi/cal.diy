@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import dayjs from "@calcom/dayjs";
 import type { CalendarAvailableTimeslots } from "@calcom/features/calendars/weeklyview/types/state";
 import type { IFromUser, IToUser } from "@calcom/features/availability/lib/getUserAvailability";
+import type { WorkingHours } from "@calcom/types/schedule";
 
 export interface IGetAvailableSlots {
   slots: Record<
@@ -19,6 +20,8 @@ export interface IGetAvailableSlots {
       showNotePublicly?: boolean | undefined;
     }[]
   >;
+  // The organizer's recurring weekly availability, used to warn when a booked slot falls outside it.
+  workingHours?: WorkingHours[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   troubleshooter?: any;
 }

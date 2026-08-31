@@ -68,6 +68,7 @@ import EventReservationSchema from "@calcom/web/components/schemas/EventReservat
 import { timeZone } from "@calcom/web/lib/clock";
 
 import { usePaymentStatus } from "../hooks/usePaymentStatus";
+import { buildBookingSummary } from "../lib/getBookingSummary";
 import type { PageProps } from "./bookings-single-view.getServerSideProps";
 
 const stringToBoolean = z
@@ -106,7 +107,7 @@ const useBrandColors = ({
 };
 
 export default function Success(props: PageProps) {
-  const { t } = useLocale();
+  const { t, i18n } = useLocale();
   const router = useRouter();
   const routerQuery = useRouterQuery();
   const pathname = usePathname();
@@ -377,6 +378,38 @@ export default function Success(props: PageProps) {
   const rescheduleProviderName = guessEventLocationType(rescheduleLocation)?.label;
   const isBookingInPast = new Date(bookingInfo.endTime) < new Date();
   const isReschedulable = !isCancelled;
+
+  const summaryTitle =
+    isRoundRobin && typeof bookingInfo.title === "string" ? bookingInfo.title : eventName;
+  const handleCopySummary = async () => {
+    const summary = buildBookingSummary(
+      {
+        title: summaryTitle,
+        date: formatToLocalizedDate(date, i18n.language, "long", tz),
+        time: formatToLocalizedTime({
+          date,
+          locale: i18n.language,
+          hour12: !is24h,
+          timeZone: tz,
+        }),
+        timeZone: formatToLocalizedTimezone(date, i18n.language, tz) ?? tz,
+        location: !isCancelled ? locationToDisplay : null,
+      },
+      {
+        title: t("what"),
+        date: t("when"),
+        time: t("time"),
+        timeZone: t("timezone"),
+        location: t("where"),
+      }
+    );
+    try {
+      await navigator.clipboard.writeText(summary);
+      showToast(t("summary_copied"), "success");
+    } catch {
+      showToast(t("error_copying_to_clipboard"), "error");
+    }
+  };
 
   const bookingCancelledEventProps = {
     booking: bookingInfo,
@@ -799,6 +832,17 @@ export default function Success(props: PageProps) {
                             </>
                           )}
                       </div>
+                      {!isCancelled && (
+                        <div className="mt-6 text-left">
+                          <Button
+                            color="secondary"
+                            StartIcon="copy"
+                            data-testid="copy-summary"
+                            onClick={handleCopySummary}>
+                            {t("copy_summary")}
+                          </Button>
+                        </div>
+                      )}
                       <div className="text-bookingdark dark:border-darkgray-200 mt-8 text-left dark:text-gray-300">
                         {eventType.bookingFields.map((field) => {
                           if (!field) return null;

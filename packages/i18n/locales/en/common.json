@@ -1505,6 +1505,8 @@
   "success_api_key_created_bold_tagline": "Save this API key somewhere safe.",
   "you_will_only_view_it_once": "You will not be able to view it again once you close this modal.",
   "copy_to_clipboard": "Copy to clipboard",
+  "copy_summary": "Copy summary",
+  "summary_copied": "Summary copied to clipboard",
   "enabled_after_update": "Enabled after update",
   "enabled_after_update_description": "The private link will work after saving",
   "confirm_delete_api_key": "Revoke this API key",

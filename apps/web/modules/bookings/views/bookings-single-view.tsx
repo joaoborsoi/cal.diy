@@ -67,7 +67,9 @@ import CancelBooking from "@calcom/web/components/booking/CancelBooking";
 import EventReservationSchema from "@calcom/web/components/schemas/EventReservationSchema";
 import { timeZone } from "@calcom/web/lib/clock";
 
+import { CopySummaryButton } from "../components/CopySummaryButton";
 import { usePaymentStatus } from "../hooks/usePaymentStatus";
+import { buildBookingSummary } from "../lib/buildBookingSummary";
 import type { PageProps } from "./bookings-single-view.getServerSideProps";
 
 const stringToBoolean = z
@@ -106,7 +108,10 @@ const useBrandColors = ({
 };
 
 export default function Success(props: PageProps) {
-  const { t } = useLocale();
+  const {
+    t,
+    i18n: { language },
+  } = useLocale();
   const router = useRouter();
   const routerQuery = useRouterQuery();
   const pathname = usePathname();
@@ -282,6 +287,9 @@ export default function Success(props: PageProps) {
   const isRoundRobin = eventType.schedulingType === SchedulingType.ROUND_ROBIN;
 
   const eventName = getEventName(eventNameObject, true);
+  // Mirrors the title shown in the "what" row below, reused by the "Copy summary" button.
+  const summaryTitle =
+    isRoundRobin && typeof bookingInfo.title === "string" ? bookingInfo.title : eventName;
   // Confirmation can be needed in two cases as of now
   // - Event Type has require confirmation option enabled always
   // - EventType has conditionally enabled confirmation option based on how far the booking is scheduled.
@@ -1030,6 +1038,26 @@ export default function Success(props: PageProps) {
                               </Link>
                             )}
                           </div>
+                        </div>
+                      </>
+                    )}
+
+                    {!isCancelled && !isCancellationMode && !isRerouting && (
+                      <>
+                        <hr className="border-subtle mt-8" />
+                        <div className="flex flex-row justify-center pt-8">
+                          <CopySummaryButton
+                            summary={buildBookingSummary({
+                              title: summaryTitle,
+                              startTime: date,
+                              durationInMinutes: calculatedDuration,
+                              timeZone: tz,
+                              is24h,
+                              locale: language,
+                              location: locationToDisplay,
+                              t,
+                            })}
+                          />
                         </div>
                       </>
                     )}

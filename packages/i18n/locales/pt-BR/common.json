@@ -131,6 +131,8 @@
   "just_connected_description": "Você acabou de se conectar. Por favor, reserve um dos horários acima ou tente novamente mais tarde.",
   "please_try_again_later_or_book_another_slot": "Você acabou de tentar se conectar agora. Por favor, tente novamente mais tarde em {{remaining}} minutos ou reserve outro horário na página de reservas.",
   "unavailable_timeslot_title": "Horário indisponível",
+  "booking_outside_business_hours_title": "Fora do horário comercial",
+  "booking_outside_business_hours_description": "O horário selecionado está fora do nosso horário comercial (seg–sex, 09:00–18:00, America/Sao_Paulo). Você ainda pode reservar, mas não há tempo de resposta garantido.",
   "booking_time_out_of_bounds_error": "O tipo de evento não pode ser agendado neste horário. Você poderia tentar outro horário?",
   "bookings_v3_title": "Experimente a nova página de reservas",
   "bookings_v3_name": "Reservas aprimoradas",

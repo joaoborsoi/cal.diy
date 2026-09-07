@@ -20,6 +20,7 @@ import { useMemo, useState } from "react";
 import type { FieldError } from "react-hook-form";
 import type { IUseBookingErrors, IUseBookingLoadingStates } from "../../hooks/useBookings";
 import { BookingFields } from "./BookingFields";
+import { OutsideBusinessHoursAlert } from "./OutsideBusinessHoursAlert";
 import { FormSkeleton } from "./Skeleton";
 
 type BookEventFormProps = {
@@ -173,6 +174,8 @@ export const BookEventForm = ({
             />
           </div>
         ) : null}
+
+        <OutsideBusinessHoursAlert timeslot={timeslot} />
 
         {!isPlatform && (
           <div className="my-3 w-full text-xs text-subtle">

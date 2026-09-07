@@ -4,6 +4,7 @@ import { useBookerStoreContext } from "@calcom/features/bookings/Booker/BookerSt
 import { useBookerTime } from "@calcom/features/bookings/Booker/hooks/useBookerTime";
 import type { UseBookingFormReturnType } from "@calcom/features/bookings/Booker/hooks/useBookingForm";
 import { formatEventFromTime } from "@calcom/features/bookings/Booker/utils/dates";
+import { isOutsideBusinessHours } from "@calcom/features/bookings/lib/isOutsideBusinessHours";
 import type { BookerEvent } from "@calcom/features/bookings/types";
 import ServerTrans from "@calcom/lib/components/ServerTrans";
 import { APP_NAME, WEBSITE_PRIVACY_POLICY_URL, WEBSITE_TERMS_URL } from "@calcom/lib/constants";
@@ -89,6 +90,8 @@ export const BookEventForm = ({
     return getPaymentAppData(eventType)?.currency || "USD";
   }, [eventType]);
 
+  const showOutsideBusinessHoursWarning = useMemo(() => isOutsideBusinessHours(timeslot), [timeslot]);
+
   if (eventQuery.isError) return <Alert severity="warning" message={t("error_booking_event")} />;
   if (eventQuery.isPending || !eventQuery.data) return <FormSkeleton />;
   if (!timeslot)
@@ -173,6 +176,17 @@ export const BookEventForm = ({
             />
           </div>
         ) : null}
+
+        {showOutsideBusinessHoursWarning && (
+          <div data-testid="booking-outside-business-hours">
+            <Alert
+              className="my-2"
+              severity="warning"
+              title={t("booking_outside_business_hours_title")}
+              message={t("booking_outside_business_hours_description")}
+            />
+          </div>
+        )}
 
         {!isPlatform && (
           <div className="my-3 w-full text-xs text-subtle">

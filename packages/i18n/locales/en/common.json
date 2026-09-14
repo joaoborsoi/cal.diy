@@ -4771,5 +4771,8 @@
   "user_updated_successfully": "User updated successfully.",
   "error_updating_user": "There was an error updating this user.",
   "please_reschedule": "Please reschedule.",
+  "choose_for_me": "Choose for me",
+  "choose_for_me_pick_another": "Pick another time",
+  "choose_for_me_no_slots_loaded": "No available times loaded yet — browse the calendar to find one.",
   "ADD_NEW_STRINGS_ABOVE_THIS_LINE_TO_PREVENT_MERGE_CONFLICTS": "↑↑↑↑↑↑↑↑↑↑↑↑↑ Add your new strings above here ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑"
 }

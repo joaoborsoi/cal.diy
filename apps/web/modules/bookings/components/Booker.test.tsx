@@ -1,6 +1,7 @@
 import "@calcom/features/bookings/Booker/__mocks__/config";
 import "./__mocks__/OverlayCalendar";
 import "./__mocks__/AvailableTimeSlots";
+import "./__mocks__/ChooseForMeButton";
 import "./__mocks__/DatePicker";
 import "./__mocks__/DryRunMessage";
 import "./__mocks__/EventMeta";

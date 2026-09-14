@@ -42,6 +42,7 @@ import type { WrappedBookerProps } from "../types";
 import { AvailableTimeSlots } from "./AvailableTimeSlots";
 import { BookEventForm } from "./BookEventForm";
 import { BookFormAsModal } from "./BookEventForm/BookFormAsModal";
+import { ChooseForMeButton } from "./ChooseForMeButton";
 import { DatePicker } from "./DatePicker";
 import { DryRunMessage } from "./DryRunMessage";
 import { EventMeta } from "./EventMeta";
@@ -427,6 +428,15 @@ const BookerComponent = ({
                     hideEventTypeDetails={hideEventTypeDetails}>
                     {eventMetaChildren}
                   </EventMeta>
+                )}
+                {!hideEventTypeDetails && (
+                  <ChooseForMeButton
+                    schedule={schedule}
+                    event={event}
+                    unavailableTimeSlots={unavailableTimeSlots}
+                    selectedTimeslot={selectedTimeslot}
+                    onAvailableTimeSlotSelect={onAvailableTimeSlotSelect}
+                  />
                 )}
                 {layout !== BookerLayouts.MONTH_VIEW &&
                   !(layout === "mobile" && bookerState === "booking") && (

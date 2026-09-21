@@ -1,8 +1,9 @@
 # Technical plan template
 
-Copy this structure into `docs/plans/<kebab-case-feature-name>.md`. Keep every
-heading. If a section doesn't apply, write `None` or `N/A — <reason>` instead of
-removing it, so a reviewer can see it was considered.
+Copy this structure into `docs/plans/<slug>/plan.md`. Keep every heading — write
+`None` or `N/A — <reason>` instead of removing a section that doesn't apply, so
+a reviewer can see it was considered. Pull as much as you can from
+`docs/plans/<slug>/research.md` rather than re-deriving it.
 
 ---
 

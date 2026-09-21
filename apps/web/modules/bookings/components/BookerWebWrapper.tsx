@@ -23,6 +23,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { shallow } from "zustand/shallow";
 import { useBookings } from "../hooks/useBookings";
 import { useCalendars } from "../hooks/useCalendars";
+import { usePickRandomSlot } from "../hooks/usePickRandomSlot";
 import { useSlots } from "../hooks/useSlots";
 import { useVerifyCode } from "../hooks/useVerifyCode";
 import { useVerifyEmail } from "../hooks/useVerifyEmail";
@@ -158,6 +159,15 @@ const BookerWebWrapperComponent = (props: BookerWebWrapperAtomProps): JSX.Elemen
     metadata: metadata ?? {},
     teamMemberEmail: props.teamMemberEmail,
   });
+  const pickForMe = usePickRandomSlot({
+    username: props.username,
+    eventSlug: props.eventSlug,
+    eventId: props.entity.eventTypeId ?? event.data?.id,
+    duration: props.duration,
+    isTeamEvent: props.isTeamEvent ?? !!event.data?.team,
+    orgSlug: props.entity.orgSlug,
+    teamMemberEmail: props.teamMemberEmail,
+  });
 
   useBookerEmbedEvents({
     eventId: event.data?.id,
@@ -225,6 +235,7 @@ const BookerWebWrapperComponent = (props: BookerWebWrapperAtomProps): JSX.Elemen
       bookings={bookings}
       calendars={calendars}
       slots={slots}
+      pickForMe={pickForMe}
       verifyEmail={verifyEmail}
       bookerForm={bookerForm}
       event={event}

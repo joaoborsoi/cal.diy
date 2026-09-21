@@ -97,6 +97,33 @@ test.describe("user with a special character in the username", () => {
   });
 });
 
+test.describe("pick for me", () => {
+  test.afterEach(async ({ users }) => {
+    await users.deleteAll();
+  });
+
+  test("clicking 'Pick for me' selects a random slot and books it like a manual pick", async ({
+    page,
+    users,
+  }) => {
+    const user = await users.create();
+    await page.goto(`/${user.username}`);
+    await page.click('[data-testid="event-type-link"]');
+
+    const pickForMeButton = page.getByTestId("pick-for-me-button");
+    await pickForMeButton.waitFor();
+    await pickForMeButton.click();
+
+    // A slot gets selected and the booking form opens, exactly as a manual slot click would.
+    await page.locator('[name="name"]').waitFor();
+
+    await bookTimeSlot(page);
+
+    await page.waitForURL((url) => url.pathname.startsWith("/booking"));
+    await expect(page.locator("[data-testid=success-page]")).toBeVisible();
+  });
+});
+
 test.describe("free user", () => {
   test.beforeEach(async ({ page, users }) => {
     const free = await users.create(freeUserObj);

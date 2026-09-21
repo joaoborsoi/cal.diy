@@ -31,6 +31,7 @@ import { DialogContent } from "@calcom/ui/components/dialog";
 import { UnpublishedEntity } from "@calcom/ui/components/unpublished-entity";
 import TurnstileCaptcha from "@calcom/web/modules/auth/components/Turnstile";
 import { useSkipConfirmStep } from "@calcom/web/modules/bookings/hooks/useSkipConfirmStep";
+import { applyPickedSlot } from "@calcom/web/modules/bookings/lib/applyPickedSlot";
 import { useNonEmptyScheduleDays } from "@calcom/web/modules/schedules/hooks/useNonEmptyScheduleDays";
 import { AnimatePresence, LazyMotion, m } from "framer-motion";
 import { useEffect, useMemo, useRef } from "react";
@@ -48,6 +49,7 @@ import { EventMeta } from "./EventMeta";
 import { HavingTroubleFindingTime } from "./HavingTroubleFindingTime";
 import { LargeCalendar } from "./LargeCalendar";
 import { OverlayCalendar } from "./OverlayCalendar/OverlayCalendar";
+import { PickForMeButton } from "./PickForMeButton";
 import { SlotSelectionModalHeader } from "./SlotSelectionModalHeader";
 import { NotFound } from "./Unavailable";
 import { VerifyCodeDialog } from "./VerifyCodeDialog";
@@ -67,6 +69,7 @@ const BookerComponent = ({
   bookings,
   verifyEmail,
   slots,
+  pickForMe,
   calendars,
   bookerForm,
   event,
@@ -96,6 +99,7 @@ const BookerComponent = ({
   );
 
   const selectedDate = useBookerStoreContext((state) => state.selectedDate);
+  const [month, setMonth] = useBookerStoreContext((state) => [state.month, state.setMonth], shallow);
 
   const [isSlotSelectionModalVisible, setIsSlotSelectionModalVisible] = useBookerStoreContext(
     (state) => [state.isSlotSelectionModalVisible, state.setIsSlotSelectionModalVisible],
@@ -214,6 +218,18 @@ const BookerComponent = ({
     if (!skipConfirmStep) {
       setIsSlotSelectionModalVisible(false);
     }
+  };
+
+  const onPickForMeClick = async () => {
+    if (!pickForMe) return;
+    const pickedSlot = await pickForMe.pickRandomSlot();
+    if (!pickedSlot) return;
+    applyPickedSlot({
+      pickedSlot,
+      currentMonth: month,
+      setMonth,
+      onAvailableTimeSlotSelect,
+    });
   };
 
   updateEmbedBookerState({ bookerState, slotsQuery: schedule });
@@ -508,6 +524,15 @@ const BookerComponent = ({
               )}
               ref={timeslotsRef}
               {...fadeInLeft}>
+              {pickForMe && (
+                <div className="mb-3 flex justify-end">
+                  <PickForMeButton
+                    onClick={onPickForMeClick}
+                    isLoading={pickForMe.isLoading}
+                    hasNoSlots={pickForMe.hasNoSlots}
+                  />
+                </div>
+              )}
               <AvailableTimeSlots
                 onAvailableTimeSlotSelect={onAvailableTimeSlotSelect}
                 customClassNames={customClassNames?.availableTimeSlotsCustomClassNames}
@@ -599,6 +624,15 @@ const BookerComponent = ({
             timeZones={timeZones}
             selectedDate={selectedDate}
           />
+          {pickForMe && (
+            <div className="mb-3 flex justify-end">
+              <PickForMeButton
+                onClick={onPickForMeClick}
+                isLoading={pickForMe.isLoading}
+                hasNoSlots={pickForMe.hasNoSlots}
+              />
+            </div>
+          )}
           <AvailableTimeSlots
             onAvailableTimeSlotSelect={onAvailableTimeSlotSelect}
             customClassNames={customClassNames?.availableTimeSlotsCustomClassNames}

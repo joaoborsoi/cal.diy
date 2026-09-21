@@ -7,6 +7,7 @@ import type { RouterOutputs } from "@calcom/trpc/react";
 import type { EventBusyDate } from "@calcom/types/Calendar";
 import type { useScheduleForEventReturnType } from "@calcom/web/modules/schedules/hooks/useEvent";
 import type { UseBookingsReturnType } from "./hooks/useBookings";
+import type { UsePickRandomSlotReturnType } from "./hooks/usePickRandomSlot";
 import type { UseSlotsReturnType } from "./hooks/useSlots";
 import type { UseVerifyCodeReturnType } from "./hooks/useVerifyCode";
 import type { UseVerifyEmailReturnType } from "./hooks/useVerifyEmail";
@@ -39,6 +40,7 @@ export type BookingListingStatus = (typeof validStatuses)[number];
 export type { UseBookerLayoutType } from "@calcom/features/bookings/Booker/hooks/useBookerLayout";
 export type { UseBookingFormReturnType } from "@calcom/features/bookings/Booker/hooks/useBookingForm";
 export type { UseBookingsReturnType } from "./hooks/useBookings";
+export type { UsePickRandomSlotReturnType } from "./hooks/usePickRandomSlot";
 export type { UseSlotsReturnType } from "./hooks/useSlots";
 export type { UseVerifyCodeReturnType } from "./hooks/useVerifyCode";
 export type { UseVerifyEmailReturnType } from "./hooks/useVerifyEmail";
@@ -57,6 +59,11 @@ export type WrappedBookerPropsMain = {
   extraOptions: Record<string, string | string[]>;
   bookings: UseBookingsReturnType;
   slots: UseSlotsReturnType;
+  /**
+   * Optional because the platform/atoms Booker wrapper doesn't wire this up yet --
+   * "Pick for me" only ships for the standard web booker in this change.
+   */
+  pickForMe?: UsePickRandomSlotReturnType;
   calendars: {
     overlayBusyDates?: EventBusyDate[];
     isOverlayCalendarEnabled: boolean;

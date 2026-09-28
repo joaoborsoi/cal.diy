@@ -1,24 +1,25 @@
-import { useCallback, useMemo, useRef } from "react";
-
 import dayjs from "@calcom/dayjs";
+import { useBookerStoreContext } from "@calcom/features/bookings/Booker/BookerStoreProvider";
+import { getQueryParam } from "@calcom/features/bookings/Booker/utils/query-param";
+import type { BookerEvent } from "@calcom/features/bookings/types";
+import { PUBLIC_INVALIDATE_AVAILABLE_SLOTS_ON_BOOKING_FORM } from "@calcom/lib/constants";
+import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { localStorage } from "@calcom/lib/webstorage";
+import { BookerLayouts } from "@calcom/prisma/zod-utils";
+import classNames from "@calcom/ui/classNames";
+import { Button } from "@calcom/ui/components/button";
 import {
   AvailableTimes,
   AvailableTimesSkeleton,
 } from "@calcom/web/modules/bookings/components/AvailableTimes";
-import { useBookerStoreContext } from "@calcom/features/bookings/Booker/BookerStoreProvider";
-import type { IUseBookingLoadingStates } from "../hooks/useBookings";
-import type { BookerEvent } from "@calcom/features/bookings/types";
-import type { Slot } from "~/schedules/lib/types";
-import { useNonEmptyScheduleDays } from "@calcom/web/modules/schedules/hooks/useNonEmptyScheduleDays";
-import { useSlotsForAvailableDates } from "@calcom/web/modules/schedules/hooks/useSlotsForDate";
-import { PUBLIC_INVALIDATE_AVAILABLE_SLOTS_ON_BOOKING_FORM } from "@calcom/lib/constants";
-import { localStorage } from "@calcom/lib/webstorage";
-import { BookerLayouts } from "@calcom/prisma/zod-utils";
-import classNames from "@calcom/ui/classNames";
-
 import { AvailableTimesHeader } from "@calcom/web/modules/bookings/components/AvailableTimesHeader";
 import type { useScheduleForEventReturnType } from "@calcom/web/modules/schedules/hooks/useEvent";
-import { getQueryParam } from "@calcom/features/bookings/Booker/utils/query-param";
+import { useNonEmptyScheduleDays } from "@calcom/web/modules/schedules/hooks/useNonEmptyScheduleDays";
+import { useSlotsForAvailableDates } from "@calcom/web/modules/schedules/hooks/useSlotsForDate";
+import { useCallback, useMemo, useRef } from "react";
+import type { Slot } from "~/schedules/lib/types";
+import type { IUseBookingLoadingStates } from "../hooks/useBookings";
+import { getPickableSlots, pickRandomSlot } from "../lib/pickRandomSlot";
 
 type AvailableTimeSlotsProps = {
   extraDays?: number;
@@ -81,9 +82,11 @@ export const AvailableTimeSlots = ({
   hideAvailableTimesHeader = false,
   ...props
 }: AvailableTimeSlotsProps) => {
+  const { t } = useLocale();
   const selectedDate = useBookerStoreContext((state) => state.selectedDate);
 
   const setSeatedEventData = useBookerStoreContext((state) => state.setSeatedEventData);
+  const bookingData = useBookerStoreContext((state) => state.bookingData);
   const date = selectedDate || dayjs().format("YYYY-MM-DD");
   const [layout] = useBookerStoreContext((state) => [state.layout]);
   const isColumnView = layout === BookerLayouts.COLUMN_VIEW;
@@ -189,6 +192,33 @@ export const AvailableTimeSlots = ({
     [overlayCalendarToggled, onTimeSelect, seatsPerTimeSlot, skipConfirmStep, toggleConfirmButton]
   );
 
+  const pickableSlotParams = {
+    slots: slotsPerDay.flatMap((day) => day.slots),
+    unavailableTimeSlots,
+    seatsPerTimeSlot,
+    currentBookingUid: bookingData?.uid,
+  };
+  const hasPickableSlots = getPickableSlots(pickableSlotParams).length > 0;
+
+  // Randomly picks one of the visible slots. The booking is never created here: the booker still has to
+  // confirm it, either through the inline confirm button (skipConfirmStep) or the booking form.
+  const handlePickForMe = () => {
+    const pickedSlot = pickRandomSlot(pickableSlotParams);
+    if (!pickedSlot) return;
+
+    if (skipConfirmStep) {
+      // Force the confirm button to show for the picked slot, even if it was already toggled on.
+      toggleConfirmButton({ ...pickedSlot, showConfirmButton: false });
+      setTentativeSelectedTimeslots([pickedSlot.time]);
+      containerRef.current
+        ?.querySelector(`[data-time="${pickedSlot.time}"]`)
+        ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      return;
+    }
+
+    onTimeSelect(pickedSlot.time, pickedSlot.attendees || 0, seatsPerTimeSlot, pickedSlot.bookingUid);
+  };
+
   return (
     <>
       <div
@@ -224,6 +254,19 @@ export const AvailableTimeSlots = ({
           })
         )}
       </div>
+
+      {!isLoading && hasPickableSlots && (
+        <Button
+          type="button"
+          color="minimal"
+          size="sm"
+          StartIcon="shuffle"
+          data-testid="pick-for-me-button"
+          className="mb-2 w-full justify-center"
+          onClick={handlePickForMe}>
+          {t("pick_for_me")}
+        </Button>
+      )}
 
       <div
         ref={containerRef}

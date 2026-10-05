@@ -60,9 +60,16 @@ test("small frontend change is auto-approved", () => {
   assert.equal(r.totals.changed_lines, 35);
 });
 
-test("exactly 50 lines passes, 51 does not", () => {
-  assert.equal(evaluate(evidenceOf(file("packages/ui/a.tsx", 25, 25)), policy).decision, DECISION.APPROVE);
-  const r = evaluate(evidenceOf(file("packages/ui/a.tsx", 26, 25)), policy);
+test("exactly max_changed_lines passes, one more does not", () => {
+  const limit = policy.max_changed_lines;
+  assert.equal(limit, 200);
+  const additions = Math.ceil(limit / 2);
+  const deletions = limit - additions;
+  assert.equal(
+    evaluate(evidenceOf(file("packages/ui/a.tsx", additions, deletions)), policy).decision,
+    DECISION.APPROVE
+  );
+  const r = evaluate(evidenceOf(file("packages/ui/a.tsx", additions + 1, deletions)), policy);
   assert.equal(r.decision, DECISION.MANUAL);
   assert.equal(r.checks.find((c) => c.id === "max-changed-lines").passed, false);
 });

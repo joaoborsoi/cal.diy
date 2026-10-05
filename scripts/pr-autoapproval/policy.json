@@ -1,0 +1,55 @@
+{
+  "id": "frontend-small-change",
+  "version": 1,
+  "statement": "Frontend changes that do not exceed 50 lines of code may be automatically approved.",
+  "interpretation": [
+    "Every changed file must be classified as frontend; a single non-frontend file requires manual review.",
+    "Lines of code = additions + deletions in the diff between the merge-base and the head (like GitHub's 'changes'), counting every line, including blank lines and comments.",
+    "Renames are not detected (--no-renames): moving a file counts as deleting + adding it.",
+    "Binary files cannot be measured and require manual review.",
+    "An empty diff is never auto-approved."
+  ],
+  "max_changed_lines": 50,
+  "classification": {
+    "order": "content markers > exclude > include > default (non-frontend)",
+    "backend_content_markers": ["^\\s*[\"']use server[\"']", "^\\s*import\\s+[\"']server-only[\"']"],
+    "exclude": [
+      "**/api/**",
+      "**/server/**",
+      "**/*.server.{ts,tsx,js,jsx}",
+      "**/trpc/**",
+      "**/prisma/**",
+      "**/migrations/**",
+      "**/repositories/**",
+      "**/repository/**",
+      "**/*.repository.{ts,tsx}",
+      "**/services/**",
+      "**/service/**",
+      "**/di/**",
+      "**/package.json",
+      "**/tsconfig*.json",
+      "**/*.config.{js,cjs,mjs,ts,mts}",
+      "**/middleware.{ts,js}",
+      "**/proxy.{ts,js}",
+      "**/instrumentation*.{ts,js}",
+      "**/.env*",
+      ".github/**",
+      ".claude/**",
+      "scripts/**",
+      "yarn.lock"
+    ],
+    "include": [
+      "packages/ui/**",
+      "packages/coss-ui/**",
+      "apps/web/components/**",
+      "apps/web/modules/**",
+      "apps/web/styles/**",
+      "apps/web/public/**",
+      "packages/features/**/components/**",
+      "packages/features/**/hooks/**",
+      "packages/features/bookings/Booker/**",
+      "packages/i18n/locales/**",
+      "**/*.{css,scss}"
+    ]
+  }
+}

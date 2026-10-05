@@ -1,0 +1,24 @@
+{
+  "skill_name": "feature-research",
+  "note": "Entry point of the feature-research -> feature-plan -> feature-implement pipeline. Running these against feature-research also exercises the chain, since the skill hands off to feature-plan (and feature-plan to feature-implement) once each gate is satisfied.",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "I want to add a feature that lets event-type owners set a custom \"thank you\" message that shows on the booking confirmation page after someone books. Can you build this?",
+      "expected_output": "Claude interviews for the spec and searches the codebase for comparable existing patterns, writes docs/plans/<slug>/research.md following the template, then hands off to feature-plan which writes docs/plans/<slug>/plan.md and stops for approval before any code is touched. It does not jump straight into editing source files.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "We need to let team admins bulk-export their team's bookings as a CSV from the bookings page. Walk me through developing this.",
+      "expected_output": "Claude asks scoping questions (columns, date range, permissions, large-dataset handling), records codebase findings in research.md, hands off to feature-plan for a plan.md with real implementation steps naming files/procedures, and that skill stops for approval. If approved, feature-implement adds Vitest tests, runs scoped type-check/lint/build/tests and reports results, then drafts docs/plans/<slug>/pr.md from .github/PULL_REQUEST_TEMPLATE.md.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Add a user setting so people can choose whether cancelled bookings still show up in their calendar view or get hidden. Develop the whole thing.",
+      "expected_output": "Claude interviews for the spec (default value, per-user vs per-calendar, migration of existing users), writes research.md, hands off to feature-plan which addresses the data-model/migration question and waits for approval. The final PR description (from feature-implement) follows the repo template including the Mandatory Tasks checkboxes and a filled-in \"How should this be tested?\" section.",
+      "files": []
+    }
+  ]
+}

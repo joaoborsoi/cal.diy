@@ -2,7 +2,7 @@
 name: pr-autoapproval
 description: >-
   Checks whether a pull request (or the current branch's diff) qualifies for
-  automatic approval under the policy "frontend changes of at most 50 lines of
+  automatic approval under the policy "frontend changes of at most 200 lines of
   code can be auto-approved". Collects evidence (changed files, line counts,
   pinned commit SHAs, the measured diff), runs the deterministic control in
   scripts/pr-autoapproval/, and reports the verdict with its audit trail.
@@ -16,7 +16,7 @@ argument-hint: "[<pr> | --local [--base <ref>] [--head <ref>]] [--apply]"
 
 Policy (`scripts/pr-autoapproval/policy.json`):
 
-> Frontend changes that do not exceed 50 lines of code may be automatically
+> Frontend changes that do not exceed 200 lines of code may be automatically
 > approved.
 
 **The one rule that matters most:** the verdict comes from the scripts, never

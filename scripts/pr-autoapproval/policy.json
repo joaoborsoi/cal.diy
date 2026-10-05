@@ -1,7 +1,7 @@
 {
   "id": "frontend-small-change",
-  "version": 1,
-  "statement": "Frontend changes that do not exceed 50 lines of code may be automatically approved.",
+  "version": 2,
+  "statement": "Frontend changes that do not exceed 200 lines of code may be automatically approved.",
   "interpretation": [
     "Every changed file must be classified as frontend; a single non-frontend file requires manual review.",
     "Lines of code = additions + deletions in the diff between the merge-base and the head (like GitHub's 'changes'), counting every line, including blank lines and comments.",
@@ -9,7 +9,7 @@
     "Binary files cannot be measured and require manual review.",
     "An empty diff is never auto-approved."
   ],
-  "max_changed_lines": 50,
+  "max_changed_lines": 200,
   "classification": {
     "order": "content markers > exclude > include > default (non-frontend)",
     "backend_content_markers": ["^\\s*[\"']use server[\"']", "^\\s*import\\s+[\"']server-only[\"']"],

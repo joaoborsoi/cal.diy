@@ -38,6 +38,7 @@ The argument is a run directory (`$ARGUMENTS`), e.g.
 | `issue.md` | Issue number, title, URL, labels, body and comments (read this first) |
 | `issue.json` | The raw GitHub API payload, if you need a field not in `issue.md` |
 | `meta.json` | `branch` you are on, `base` branch, `repo` |
+| `ambiguity.json` | Ambiguity score (0–3) from the pre-run judge, with dimensions, open decisions and assumptions — absent if the gate was skipped |
 
 The harness has already created and checked out a dedicated branch
 (`meta.json → branch`). Stay on it: don't switch branches, don't push, don't
@@ -56,8 +57,19 @@ Read `issue.md`. Decide whether this is actionable as code in this repo:
   repo → stop and finish with `failed` (reason: `not_actionable` /
   `needs_clarification`), explaining what a human would need to decide.
 
-When something is ambiguous but a reasonable default exists, pick it and write
-it down under "Assumptions" in the plan rather than failing.
+Ambiguity is judged with [ambiguity-rubric.md](ambiguity-rubric.md):
+
+- If `ambiguity.json` exists, the harness already scored the issue and only
+  lets scores 0–1 through. Copy its `assumptions` into "Assumptions" in the
+  plan. If your research shows a dimension it marked `inferable` is actually
+  `missing`, or turns up a decision without a safe default, re-score with the
+  rubric yourself. If you land on 2–3, stop with `needs_clarification` and
+  list the questions.
+- If it doesn't exist (gate skipped), score the issue with the rubric yourself
+  and apply the same rule: 0–1 proceed, 2–3 stop.
+
+When a gap has a safe, reversible default, pick it and write it down under
+"Assumptions" in the plan rather than failing.
 
 ## 2. Research
 

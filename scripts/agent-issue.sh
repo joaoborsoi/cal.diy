@@ -16,15 +16,21 @@
 #   --max-budget-usd <n>      Stop the agent after spending this much
 #   --permission-mode <mode>  claude permission mode (default: acceptEdits + allowlist)
 #   --stay                    Stay on the agent branch afterwards (default: go back)
+#   --ambiguity-samples <n>   Judge runs for the ambiguity gate (default: 3)
+#   --skip-ambiguity          Don't score the issue before running the agent
 #   -h, --help                Show this help
 #
 # Env: GITHUB_TOKEN (optional; needed for private repos / higher rate limits)
+#
+# Before the agent runs, the issue is scored 0–3 against
+# .claude/skills/resolve-issue/ambiguity-rubric.md (scripts/issue-ambiguity/);
+# scores 2–3 fail fast with the questions the author needs to answer.
 #
 # Exit codes: 0 = completed, 1 = failed, 2 = usage/setup error
 
 set -uo pipefail
 
-usage() { sed -n '3,24p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '3,30p' "$0" | sed 's/^# \{0,1\}//'; }
 
 if [[ -t 1 ]]; then
   RED=$'\e[31m' GREEN=$'\e[32m' YELLOW=$'\e[33m' DIM=$'\e[2m' BOLD=$'\e[1m' RESET=$'\e[0m'
@@ -37,7 +43,7 @@ info() { echo "${DIM}›${RESET} $*"; }
 
 # --- args -------------------------------------------------------------------
 
-ISSUE_ARG="" REPO="" MODEL="" BUDGET="" PERMISSION_MODE="" STAY=0
+ISSUE_ARG="" REPO="" MODEL="" BUDGET="" PERMISSION_MODE="" STAY=0 SKIP_AMBIGUITY=0 AMBIGUITY_SAMPLES=3
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --repo) REPO="${2:-}"; shift 2 ;;
@@ -45,6 +51,8 @@ while [[ $# -gt 0 ]]; do
     --max-budget-usd) BUDGET="${2:-}"; shift 2 ;;
     --permission-mode) PERMISSION_MODE="${2:-}"; shift 2 ;;
     --stay) STAY=1; shift ;;
+    --ambiguity-samples) AMBIGUITY_SAMPLES="${2:-}"; shift 2 ;;
+    --skip-ambiguity) SKIP_AMBIGUITY=1; shift ;;
     -h|--help) usage; exit 0 ;;
     -*) die "unknown option: $1" ;;
     *) [[ -z "$ISSUE_ARG" ]] || die "only one issue per run"; ISSUE_ARG="$1"; shift ;;
@@ -52,7 +60,7 @@ while [[ $# -gt 0 ]]; do
 done
 [[ -n "$ISSUE_ARG" ]] || { usage; exit 2; }
 
-for bin in claude jq curl git; do
+for bin in claude jq curl git node; do
   command -v "$bin" >/dev/null || die "'$bin' not found in PATH"
 done
 
@@ -89,35 +97,43 @@ mkdir -p "$RUN_DIR"
 
 # --- fetch the issue ---------------------------------------------------------
 
-gh_get() {
-  local auth=()
-  [[ -n "${GITHUB_TOKEN:-}" ]] && auth=(-H "Authorization: Bearer $GITHUB_TOKEN")
-  curl -fsSL -H "Accept: application/vnd.github+json" "${auth[@]}" "https://api.github.com/repos/$REPO/$1"
-}
-
 info "fetching $REPO#$ISSUE"
-gh_get "issues/$ISSUE" > "$RUN_DIR/issue.json" || die "couldn't fetch issue $REPO#$ISSUE (set GITHUB_TOKEN for private repos)"
-jq -e 'has("pull_request") | not' "$RUN_DIR/issue.json" >/dev/null || die "$REPO#$ISSUE is a pull request, not an issue"
-gh_get "issues/$ISSUE/comments?per_page=100" > "$RUN_DIR/comments.json" || echo '[]' > "$RUN_DIR/comments.json"
-
-jq -r --slurpfile comments "$RUN_DIR/comments.json" '
-  "# #\(.number): \(.title)\n",
-  "- URL: \(.html_url)",
-  "- State: \(.state)",
-  "- Author: \(.user.login)",
-  "- Labels: \([.labels[].name] | join(", ") | if . == "" then "none" else . end)\n",
-  "## Body\n",
-  (.body // "_(empty)_"),
-  "\n## Comments\n",
-  (if ($comments[0] | length) == 0 then "_(none)_"
-   else $comments[0][] | "### \(.user.login) — \(.created_at)\n\n\(.body)\n" end)
-' "$RUN_DIR/issue.json" > "$RUN_DIR/issue.md"
+"$REPO_ROOT/scripts/issue-ambiguity/fetch-issue.sh" "$REPO" "$ISSUE" "$RUN_DIR" || exit 2
 
 TITLE="$(jq -r .title "$RUN_DIR/issue.json")"
 jq -n --arg repo "$REPO" --argjson issue "$ISSUE" --arg title "$TITLE" \
   --arg branch "$BRANCH" --arg base "$BASE_BRANCH" --arg base_sha "$BASE_SHA" \
   '{repo:$repo, issue:$issue, title:$title, branch:$branch, base:$base, base_sha:$base_sha}' \
   > "$RUN_DIR/meta.json"
+
+# --- ambiguity gate ----------------------------------------------------------
+# Score the issue against .claude/skills/resolve-issue/ambiguity-rubric.md
+# before spending a full agent run on it. Scores 2–3 stop here.
+
+if [[ $SKIP_AMBIGUITY -eq 0 ]]; then
+  info "scoring ambiguity ($AMBIGUITY_SAMPLES sample(s))"
+  JUDGE_ARGS=(--samples "$AMBIGUITY_SAMPLES")
+  [[ -n "$MODEL" ]] && JUDGE_ARGS+=(--model "$MODEL")
+  node "$REPO_ROOT/scripts/issue-ambiguity/judge.mjs" --issue-file "$RUN_DIR/issue.md" \
+    --subject "$REPO#$ISSUE" --out "$RUN_DIR/ambiguity.json" --report "$RUN_DIR/ambiguity.md" "${JUDGE_ARGS[@]}"
+  JUDGE_EXIT=$?
+  [[ $JUDGE_EXIT -le 1 ]] || die "ambiguity judge failed (rerun with --skip-ambiguity to bypass)"
+  info "ambiguity $(jq -r '"\(.score)/3 → \(.action)"' "$RUN_DIR/ambiguity.json")"
+
+  if [[ $JUDGE_EXIT -eq 1 ]]; then
+    REASON="$(jq -r .failure_reason "$RUN_DIR/ambiguity.json")"
+    jq --arg reason "$REASON" '{status: "failed", reason: ("ambiguity gate: " + $reason)} + . + {agent: null}' \
+      "$RUN_DIR/meta.json" | jq --slurpfile amb "$RUN_DIR/ambiguity.json" '. + {ambiguity: $amb[0]}' \
+      > "$RUN_DIR/result.json"
+    echo failed > "$RUN_DIR/STATUS"
+    echo
+    echo "${RED}${BOLD}✘ FAILED${RESET}  $REPO#$ISSUE"
+    echo "  ${YELLOW}ambiguity $(jq -r .score "$RUN_DIR/ambiguity.json")/3 — $REASON; agent not run${RESET}"
+    jq -r '.questions[] | "  ? \(.)"' "$RUN_DIR/ambiguity.json"
+    echo "  ${DIM}results: $RUN_DIR/ (ambiguity.md, ambiguity.json, result.json)${RESET}"
+    exit 1
+  fi
+fi
 
 git switch --quiet -c "$BRANCH" || die "couldn't create branch $BRANCH"
 info "branch $BRANCH (from $BASE_BRANCH)"

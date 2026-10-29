@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "properties": {
+    "status": { "type": "string", "enum": ["completed", "failed"] },
+    "failure_reason": {
+      "type": "string",
+      "enum": ["needs_clarification", "too_large", "checks_failing", "blocked", "other"]
+    },
+    "summary": { "type": "string" },
+    "commits": { "type": "array", "items": { "type": "string" } },
+    "files_changed": { "type": "array", "items": { "type": "string" } },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "command": { "type": "string" },
+          "result": { "type": "string", "enum": ["pass", "fail", "skipped"] },
+          "notes": { "type": "string" }
+        },
+        "required": ["name", "result"]
+      }
+    }
+  },
+  "required": ["status", "summary"]
+}

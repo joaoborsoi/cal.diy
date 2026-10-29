@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "properties": {
+    "status": { "type": "string", "enum": ["ready", "needs_clarification"] },
+    "summary": { "type": "string" },
+    "questions": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["status", "summary"]
+}

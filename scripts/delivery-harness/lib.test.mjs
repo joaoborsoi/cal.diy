@@ -4,6 +4,7 @@ import { test } from "node:test";
 
 import {
   applyCommand,
+  DEFAULT_LIMITS,
   evaluateStage,
   initialState,
   missingPlanSections,
@@ -229,6 +230,79 @@ test("verificacao: failures go back to implementation with feedback, then block"
   );
   assert.equal(green.state.state, "aguardando-revisao");
   assert.equal(green.state.feedback, null);
+});
+
+test("verificacao: a green PR that meets the policy skips the human review", () => {
+  const green = [{ name: "lint", result: "pass" }];
+  const eligible = { decision: "auto-approve", head_sha: "abc123" };
+  const auto = evaluateStage(
+    at("verificacao"),
+    "verificacao",
+    { checks: green, head_sha: "abc123", autoapproval: eligible },
+    ctx
+  );
+  assert.equal(auto.state.state, "auto-aprovacao");
+  assert.equal(auto.state.verified_sha, "abc123");
+
+  const manual = {
+    checks: green,
+    head_sha: "abc123",
+    autoapproval: { decision: "manual-review", head_sha: "abc123" },
+  };
+  assert.equal(
+    evaluateStage(at("verificacao"), "verificacao", manual, ctx).state.state,
+    "aguardando-revisao"
+  );
+
+  const moved = { checks: green, head_sha: "def456", autoapproval: eligible };
+  assert.equal(
+    evaluateStage(at("verificacao"), "verificacao", moved, ctx).state.state,
+    "aguardando-revisao",
+    "the policy must have measured the commit that was checked"
+  );
+
+  const off = { ...ctx, limits: { ...DEFAULT_LIMITS, autoApprove: false } };
+  const disabled = { checks: green, head_sha: "abc123", autoapproval: eligible };
+  assert.equal(
+    evaluateStage(at("verificacao"), "verificacao", disabled, off).state.state,
+    "aguardando-revisao"
+  );
+
+  const failing = { checks: [{ name: "lint", result: "fail" }], head_sha: "abc123", autoapproval: eligible };
+  assert.equal(evaluateStage(at("verificacao"), "verificacao", failing, ctx).state.state, "implementacao");
+});
+
+test("auto-aprovacao finishes only when ready, approved and merged are all observed", () => {
+  const facts = {
+    head_unchanged: true,
+    head_sha: "abc123",
+    ready: true,
+    approved: true,
+    approved_by: "joao",
+    merged: true,
+    merge_sha: "fff",
+  };
+  const done = evaluateStage(at("auto-aprovacao"), "auto-aprovacao", facts, ctx);
+  assert.equal(done.state.state, "concluido");
+  assert.ok(done.outcome.checks.every((c) => c.pass));
+
+  const noApprover = {
+    ...facts,
+    approved: false,
+    approve_error: "secret HARNESS_APPROVER_TOKEN não configurado",
+    merged: false,
+  };
+  const fallback = evaluateStage(at("auto-aprovacao"), "auto-aprovacao", noApprover, ctx);
+  assert.equal(fallback.state.state, "aguardando-revisao", "falls back to a human, no retry");
+  assert.ok(fallback.outcome.checks.some((c) => !c.pass && /HARNESS_APPROVER_TOKEN/.test(c.details)));
+
+  const moved = evaluateStage(
+    at("auto-aprovacao"),
+    "auto-aprovacao",
+    { ...facts, head_unchanged: false },
+    ctx
+  );
+  assert.equal(moved.state.state, "aguardando-revisao");
 });
 
 test("a result that arrives after the issue moved on is discarded", () => {

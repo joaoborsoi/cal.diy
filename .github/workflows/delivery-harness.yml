@@ -1,5 +1,6 @@
 # Delivery harness: Claude Code takes a prioritized issue through
-#   triagem → planejamento → [aprovação do plano] → implementacao → verificacao → [revisão]
+#   triagem → planejamento → [aprovação do plano] → implementacao → verificacao
+#     → auto-aprovacao (PR elegível pela política: aprova + merge) | [revisão humana]
 # The state lives on the issue (panel comment + `harness:*` label). Each run
 # executes at most one stage, checks its exit conditions, records the result on
 # the issue and dispatches itself again while the next state is automatic. Human
@@ -31,6 +32,8 @@ env:
   HARNESS_AMBIGUITY_SAMPLES: ${{ vars.HARNESS_AMBIGUITY_SAMPLES || '3' }}
   HARNESS_MODEL: ${{ vars.HARNESS_MODEL }}
   HARNESS_MAX_BUDGET_USD: ${{ vars.HARNESS_MAX_BUDGET_USD }}
+  HARNESS_AUTO_APPROVE: ${{ vars.HARNESS_AUTO_APPROVE || 'true' }}
+  HARNESS_MERGE_METHOD: ${{ vars.HARNESS_MERGE_METHOD || 'squash' }}
   BASE_BRANCH: ${{ github.event.repository.default_branch }}
 
 jobs:
@@ -132,6 +135,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GITHUB_TOKEN: ${{ github.token }}
         run: '"$HARNESS_HOME/scripts/delivery-harness/stages/verificacao.sh" "${{ steps.route.outputs.issue }}" "${{ steps.run.outputs.dir }}" "$STATE_DIR"'
+
+      # Runs from the base-branch checkout only: no agent code is executed here,
+      # so it is the one step that gets the approver's token.
+      - name: "Stage: auto-aprovacao"
+        if: steps.route.outputs.stage == 'auto-aprovacao'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          HARNESS_APPROVER_TOKEN: ${{ secrets.HARNESS_APPROVER_TOKEN }}
+        run: '"$HARNESS_HOME/scripts/delivery-harness/stages/auto-aprovacao.sh" "${{ steps.route.outputs.issue }}" "${{ steps.run.outputs.dir }}" "$STATE_DIR"'
 
       # Runs even if a stage script crashed: missing facts fail the gate, which
       # retries or blocks — the issue never stays silently stuck in a stage.

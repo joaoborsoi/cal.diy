@@ -2,7 +2,9 @@
 #
 # Stage `verificacao`: deterministic checks on the harness branch — no LLM.
 # Lint, tests and type-check scoped to what the PR touched, a "tests come with
-# code" rule, and the auto-approval policy (informational).
+# code" rule, and the auto-approval policy. A green PR that meets the policy
+# goes to `auto-aprovacao` (approve + merge) instead of the human review gate;
+# the facts pin the commit that was checked and the one the policy measured.
 #
 # Usage: scripts/delivery-harness/stages/verificacao.sh <issue> <run-dir> <state-dir>
 # Env: GITHUB_REPOSITORY, GH_TOKEN, GITHUB_TOKEN
@@ -16,13 +18,18 @@ ROOT="${HARNESS_HOME:-$(git rev-parse --show-toplevel)}"
 PR="$(jq -r '.pr // empty' "$STATE_DIR/state.json")"
 mkdir -p "$RUN_DIR/logs"
 : > "$RUN_DIR/checks.jsonl"
+HEAD_SHA="$(git rev-parse HEAD)"
+AUTO_DECISION="error"
 
 record() { # name result command notes
   jq -nc --arg name "$1" --arg result "$2" --arg command "$3" --arg notes "$4" \
     '{name:$name, result:$result, command:$command, notes:(if $notes == "" then null else $notes end)}' >> "$RUN_DIR/checks.jsonl"
 }
 finish() {
-  jq -s '{checks: .}' "$RUN_DIR/checks.jsonl" > "$RUN_DIR/facts.json"
+  jq -s --arg head "$HEAD_SHA" --arg decision "$AUTO_DECISION" \
+    --arg policy_head "$(jq -r '.subject.head_sha // empty' "$RUN_DIR/autoapproval/evidence.json" 2>/dev/null)" \
+    '{checks: ., head_sha: $head, autoapproval: {decision: $decision, head_sha: (if $policy_head == "" then null else $policy_head end)}}' \
+    "$RUN_DIR/checks.jsonl" > "$RUN_DIR/facts.json"
   {
     for log in "$RUN_DIR"/logs/*.log; do
       [[ -s "$log" ]] || continue
@@ -87,11 +94,14 @@ else
   record "type-check" skipped "" "nenhum workspace com type-check afetado"
 fi
 
-# 5. Auto-approval policy — informs the human gate, never blocks.
+# 5. Auto-approval policy — never fails the stage; it decides whether a human
+#    still has to review (manual) or the harness approves and merges (eligible).
 "$ROOT/scripts/pr-autoapproval/check.sh" "$PR" --repo "$GITHUB_REPOSITORY" --out-dir "$RUN_DIR/autoapproval" > "$RUN_DIR/logs/autoapproval.out" 2>&1
 case $? in
-  0) record "política de auto-aprovação" info "scripts/pr-autoapproval/check.sh $PR" "elegível: frontend ≤ 200 linhas" ;;
-  1) record "política de auto-aprovação" info "scripts/pr-autoapproval/check.sh $PR" "não elegível: requer revisão manual" ;;
+  0) AUTO_DECISION="auto-approve"
+     record "política de auto-aprovação" info "scripts/pr-autoapproval/check.sh $PR" "elegível: aprovação e merge automáticos" ;;
+  1) AUTO_DECISION="manual-review"
+     record "política de auto-aprovação" info "scripts/pr-autoapproval/check.sh $PR" "não elegível: requer revisão humana" ;;
   *) record "política de auto-aprovação" skipped "scripts/pr-autoapproval/check.sh $PR" "controle não executou" ;;
 esac
 : > "$RUN_DIR/logs/autoapproval.out"

@@ -10,7 +10,7 @@
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 
-import { api, comment, ensureLabels, loadPanel, savePanel, syncStateLabel } from "./github.mjs";
+import { api, comment, ensureLabels, loadPanel, markReady, savePanel, syncStateLabel } from "./github.mjs";
 import { parseCommand, route } from "./lib.mjs";
 
 const { values: opts } = parseArgs({ options: { "out-dir": { type: "string", default: ".harness/state" } } });
@@ -56,7 +56,7 @@ if (decision.changed) {
   if (payload.comment) api("POST", `issues/comments/${payload.comment.id}/reactions`, { content: "+1" });
   // Leaving the review gate with /aprovar hands the draft PR over to humans.
   if (state.state === "concluido" && state.pr) {
-    api("PATCH", `pulls/${state.pr}`, { draft: false });
+    markReady(state.pr);
     comment(
       issue,
       `✅ Aprovado por @${event.actor}. O PR #${state.pr} saiu de rascunho e está pronto para revisão/merge.`

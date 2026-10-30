@@ -7,7 +7,8 @@
 //   node scripts/delivery-harness/advance.mjs --issue <n> --stage <stage> --facts <facts.json>
 //     [--body <extra.md>]   Markdown appended to the stage comment (plan, report…)
 //
-// Env: HARNESS_MAX_ATTEMPTS, HARNESS_MAX_CHANGED_LINES, HARNESS_MAX_CHANGED_FILES
+// Env: HARNESS_MAX_ATTEMPTS, HARNESS_MAX_CHANGED_LINES, HARNESS_MAX_CHANGED_FILES,
+//      HARNESS_AUTO_APPROVE ("false" sends every green PR to human review)
 
 import { existsSync, readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
@@ -36,6 +37,7 @@ const limits = {
   maxAttempts: Number(process.env.HARNESS_MAX_ATTEMPTS || DEFAULT_LIMITS.maxAttempts),
   maxChangedLines: Number(process.env.HARNESS_MAX_CHANGED_LINES || DEFAULT_LIMITS.maxChangedLines),
   maxChangedFiles: Number(process.env.HARNESS_MAX_CHANGED_FILES || DEFAULT_LIMITS.maxChangedFiles),
+  autoApprove: process.env.HARNESS_AUTO_APPROVE !== "false",
 };
 
 // Re-read the state: a human may have cancelled while the stage was running.

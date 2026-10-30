@@ -9,7 +9,12 @@
 export const TRIGGER_LABEL = "priorizado";
 export const LABEL_PREFIX = "harness:";
 export const PANEL_MARKER = "<!-- delivery-harness:state";
-export const DEFAULT_LIMITS = { maxAttempts: 2, maxChangedLines: 500, maxChangedFiles: 10 };
+export const DEFAULT_LIMITS = {
+  maxAttempts: 2,
+  maxChangedLines: 500,
+  maxChangedFiles: 10,
+  autoApprove: true,
+};
 
 // kind: auto  → a job runs it; the workflow keeps advancing on its own.
 //       human → the harness waits for a command on the issue.
@@ -19,6 +24,10 @@ export const STATES = {
   planejamento: { kind: "auto", description: "Claude escrevendo o plano técnico" },
   implementacao: { kind: "auto", description: "Claude implementando o plano aprovado" },
   verificacao: { kind: "auto", description: "Verificações determinísticas no branch" },
+  "auto-aprovacao": {
+    kind: "auto",
+    description: "PR elegível: aprovando e fazendo merge sem revisão humana",
+  },
   "aguardando-esclarecimento": {
     kind: "human",
     description: "A issue precisa de respostas do autor",
@@ -45,7 +54,7 @@ export const STATES = {
     // `retomar` goes back to state.blocked_from (resolved in applyCommand).
     commands: { retomar: null },
   },
-  concluido: { kind: "final", description: "PR pronto para revisão" },
+  concluido: { kind: "final", description: "Entrega finalizada" },
   cancelado: { kind: "final", description: "Cancelado por um humano" },
 };
 
@@ -76,6 +85,7 @@ export function initialState(issue, now) {
     plan_comment_id: null,
     branch: `harness/issue-${issue}`,
     pr: null,
+    verified_sha: null,
     history: [],
   };
 }
@@ -262,7 +272,7 @@ const GATES = {
     return { checks, next: withinLines && withinFiles ? "verificacao" : "aguardando-escopo" };
   },
 
-  verificacao(f) {
+  verificacao(f, limits) {
     const results = f.checks ?? [];
     if (results.length === 0) return { error: "nenhuma verificação executou", checks: [] };
     const checks = results.map((c) => ({
@@ -270,10 +280,34 @@ const GATES = {
       pass: c.result !== "fail",
       details: [c.result, c.notes].filter(Boolean).join(" — "),
     }));
-    if (checks.every((c) => c.pass)) return { checks, next: "aguardando-revisao" };
+    if (checks.every((c) => c.pass)) {
+      // A green PR that also meets scripts/pr-autoapproval/policy.json skips the
+      // human review — but only for the exact commit the policy measured.
+      const a = f.autoapproval ?? {};
+      const eligible =
+        limits.autoApprove && a.decision === "auto-approve" && a.head_sha && a.head_sha === f.head_sha;
+      return { checks, next: eligible ? "auto-aprovacao" : "aguardando-revisao" };
+    }
     // Failing checks go back to the agent with the failures as feedback; the
     // attempt budget of `implementacao` decides when a human has to step in.
     return { checks, next: "implementacao", retry_feedback: renderCheckFeedback(results) };
+  },
+
+  // Every step is re-read from the API after it was attempted. Any gap falls
+  // back to the human review gate instead of retrying: approving and merging
+  // are not things to keep trying blindly.
+  "auto-aprovacao"(f) {
+    const checks = [
+      check("PR ainda no commit verificado", f.head_unchanged, f.head_sha?.slice(0, 12)),
+      check("PR fora de rascunho", f.ready, f.ready_error),
+      check(
+        "PR aprovado no commit verificado",
+        f.approved,
+        f.approved ? `por @${f.approved_by}` : f.approve_error
+      ),
+      check("merge realizado", f.merged, f.merged ? f.merge_sha?.slice(0, 12) : f.merge_error),
+    ];
+    return { checks, next: checks.every((c) => c.pass) ? "concluido" : "aguardando-revisao" };
   },
 };
 
@@ -333,6 +367,8 @@ export function evaluateStage(state, stage, facts, { now, limits = DEFAULT_LIMIT
     blocked_from,
     plan_comment_id: facts.plan_comment_id ?? state.plan_comment_id,
     pr: facts.pr_number ?? state.pr,
+    // The commit verificacao measured; auto-aprovacao approves and merges only this one.
+    verified_sha: stage === "verificacao" ? (facts.head_sha ?? null) : state.verified_sha,
     history: [
       ...state.history,
       {

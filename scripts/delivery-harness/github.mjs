@@ -44,6 +44,16 @@ export function savePanel(issue, panelId, state) {
   return api("POST", `issues/${issue}/comments`, { body }).id;
 }
 
+// REST can't take a PR out of draft; `gh pr ready` goes through GraphQL. A PR
+// that is already ready (e.g. after a failed auto-approval) is not an error.
+export function markReady(pr) {
+  try {
+    gh(["pr", "ready", String(pr), "--repo", REPO]);
+  } catch (err) {
+    if (api("GET", `pulls/${pr}`).draft) throw err;
+  }
+}
+
 export const comment = (issue, body) => api("POST", `issues/${issue}/comments`, { body });
 
 const LABEL_COLORS = { auto: "1d76db", human: "fbca04", final: "0e8a16" };

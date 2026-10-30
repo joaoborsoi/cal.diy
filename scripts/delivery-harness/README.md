@@ -28,10 +28,16 @@ na issue e pede decisões humanas por comentários.
           │ verificacao │──────────────────────────────────────────▶ implementacao
           └──────┬──────┘
                  │ tudo verde
-                 ▼
-          ┌────────────────────┐ /aprovar ┌───────────┐
-          │ aguardando-revisao │────────▶│ concluido │  (PR sai de rascunho)
-          └────────────────────┘         └───────────┘
+                 ├────────────────────────────┐ elegível pela política de auto-aprovação
+                 │ não elegível               ▼
+                 │                     ┌────────────────┐ aprovado + merge ┌───────────┐
+                 │                     │ auto-aprovacao │────────────────▶│ concluido │
+                 │                     └───────┬────────┘                  └───────────┘
+                 │                             │ algum passo falhou              ▲
+                 ▼                             ▼                                 │
+          ┌────────────────────┐◀──────────────┘                                 │
+          │ aguardando-revisao │──/aprovar (PR sai de rascunho)──────────────────┘
+          └────────────────────┘
 
   Qualquer etapa automática que falha repete até HARNESS_MAX_ATTEMPTS e depois
   vai para `bloqueado` (/retomar volta para a etapa que travou).
@@ -69,10 +75,21 @@ um humano cancelar durante uma etapa, o resultado dela é descartado.
 | triagem | juiz de ambiguidade (`scripts/issue-ambiguity`) dá 0–1 | 2–3 → pede esclarecimento |
 | planejamento | `plan.md` existe, tem as seções Problema/Abordagem/Premissas/Arquivos/Testes e nenhum arquivo do repo mudou | repete / bloqueia; `needs_clarification` → pede esclarecimento |
 | implementacao | agente reporta `completed`, há commits novos, árvore limpa, branch publicado e PR rascunho aberto | repete / bloqueia; acima de `HARNESS_MAX_CHANGED_LINES`/`FILES` → decisão de escopo |
-| verificacao | lint (biome), testes alterados (vitest) e type-check dos workspaces tocados passam; lógica `.ts` vem com teste | volta à implementação com as falhas como feedback |
+| verificacao | lint (biome), testes alterados (vitest) e type-check dos workspaces tocados passam; lógica `.ts` vem com teste. Se a política de auto-aprovação aprovar o mesmo commit verificado → `auto-aprovacao`; senão → revisão humana | volta à implementação com as falhas como feedback |
+| auto-aprovacao | PR ainda no commit verificado, fora de rascunho, aprovado nesse commit e mergeado — cada passo relido da API | volta para `aguardando-revisao` (sem retry) com o motivo |
 
-A política de auto-aprovação (`scripts/pr-autoapproval`) roda na verificação
-como informação para a revisão humana; não bloqueia.
+### Auto-aprovação
+
+A política é a de `scripts/pr-autoapproval/policy.json` (frontend, ≤ 200
+linhas), avaliada de forma determinística no commit que a verificação testou.
+Quando ela aprova e todos os checks estão verdes, nenhum humano é chamado: o
+harness tira o PR de rascunho, envia uma review `APPROVE` fixada nesse commit,
+faz o merge (`sha` fixado — se alguém der push no meio, o merge é recusado) e
+apaga o branch. A aprovação do plano continua sendo humana.
+
+O PR é aberto pelo `github-actions[bot]`, e o GitHub não deixa o autor aprovar
+o próprio PR. Por isso a review usa o secret `HARNESS_APPROVER_TOKEN`, de outra
+conta. Sem ele, a etapa registra o motivo e cai na revisão humana.
 
 ## Comandos na issue
 
@@ -86,7 +103,13 @@ Só contam comentários de OWNER, MEMBER ou COLLABORATOR, começando por:
 ## Configuração
 
 - Secret `CLAUDE_CODE_OAUTH_TOKEN` (já criado pelo `/install-github-app`).
-- Variáveis opcionais do repositório: `HARNESS_MAX_ATTEMPTS` (2),
+- Secret `HARNESS_APPROVER_TOKEN` para a auto-aprovação: token de uma conta com
+  acesso de escrita que **não** seja o `github-actions[bot]` (PAT fine-grained
+  com *Pull requests: read and write* neste repositório, ou token de GitHub App).
+  A review aparece em nome dessa conta.
+- Variáveis opcionais do repositório: `HARNESS_AUTO_APPROVE` (`true`; `false`
+  manda todo PR para revisão humana), `HARNESS_MERGE_METHOD` (`squash`,
+  `merge` ou `rebase`), `HARNESS_MAX_ATTEMPTS` (2),
   `HARNESS_MAX_CHANGED_LINES` (500), `HARNESS_MAX_CHANGED_FILES` (10),
   `HARNESS_AMBIGUITY_SAMPLES` (3), `HARNESS_MODEL`, `HARNESS_MAX_BUDGET_USD`.
 - O workflow precisa estar no branch padrão para receber eventos de issue.
@@ -104,7 +127,10 @@ Só contam comentários de OWNER, MEMBER ou COLLABORATOR, começando por:
 - As ferramentas do harness são copiadas do branch padrão antes de qualquer
   checkout do branch do agente, então código gerado não substitui o harness.
 - Código gerado (testes, lint, type-check, `yarn install`) roda sem token.
-- Pushes e mudanças de PR feitos com `GITHUB_TOKEN` não disparam o CI do PR;
+- O token do aprovador só entra no passo `auto-aprovacao`, que roda apenas os
+  scripts do branch padrão — nenhum código do agente executa nesse passo.
+- Pushes, PRs e merges feitos com `GITHUB_TOKEN` não disparam workflows (nem o
+  CI do PR, nem os de push no `main`);
   por isso a etapa de verificação roda os checks escopados. O CI completo roda
   no próximo push ou re-run feito por um humano.
 

@@ -31,6 +31,7 @@ vi.mock("next/navigation", async (importOriginal) => {
   };
 });
 
+import dayjs from "@calcom/dayjs";
 import "@calcom/dayjs/__mocks__";
 import "@calcom/web/modules/auth/components/Turnstile";
 
@@ -244,6 +245,59 @@ describe("Booker", () => {
 
     expect(mockInvalidate).toHaveBeenCalled();
     expect(defaultProps.slots.setSelectedTimeslot).toHaveBeenCalledWith(null);
+  });
+
+  describe("Choose for me", () => {
+    const futureDate = dayjs().add(1, "day").format("YYYY-MM-DD");
+    const futureTimes = [`${futureDate}T10:00:00Z`, `${futureDate}T11:00:00Z`];
+    const scheduleWithSlots = {
+      ...mockSchedule,
+      data: { slots: { [futureDate]: futureTimes.map((time) => ({ time })) } },
+    };
+    const renderBooker = (overrides: Record<string, unknown> = {}, state = "selecting_time") =>
+      render(
+        <Booker
+          {...({
+            ...defaultProps,
+            schedule: scheduleWithSlots,
+            ...overrides,
+          } as unknown as BookerProps & WrappedBookerProps)}
+        />,
+        { mockStore: { state } as never }
+      );
+
+    it("renders an enabled button when there are slots", () => {
+      renderBooker();
+      expect(screen.getByTestId("choose-for-me")).toBeEnabled();
+    });
+
+    it("is disabled when there are no slots or schedule is pending", () => {
+      const { unmount } = renderBooker({ schedule: { ...mockSchedule, data: { slots: {} } } });
+      expect(screen.getByTestId("choose-for-me")).toBeDisabled();
+      unmount();
+      renderBooker({ schedule: { ...scheduleWithSlots, isPending: true } });
+      expect(screen.getByTestId("choose-for-me")).toBeDisabled();
+    });
+
+    it("selects a random available slot on click, also again in booking state", () => {
+      const setSelectedTimeslot = vi.fn();
+      const slots = { ...defaultProps.slots, setSelectedTimeslot };
+      renderBooker({ slots }, "booking");
+      setSelectedTimeslot.mockClear();
+      const button = screen.getByTestId("choose-for-me");
+      button.click();
+      button.click();
+      expect(setSelectedTimeslot).toHaveBeenCalledTimes(2);
+      expect(futureTimes).toContain(setSelectedTimeslot.mock.calls[0][0]);
+    });
+
+    it("is not rendered on platform or when event type details are hidden", () => {
+      const { unmount } = renderBooker({ isPlatform: true });
+      expect(screen.queryByTestId("choose-for-me")).not.toBeInTheDocument();
+      unmount();
+      renderBooker({ bookerLayout: { ...defaultProps.bookerLayout, hideEventTypeDetails: true } });
+      expect(screen.queryByTestId("choose-for-me")).not.toBeInTheDocument();
+    });
   });
 
   describe("Schedule and Availability Check", () => {

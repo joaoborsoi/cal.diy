@@ -4582,5 +4582,6 @@
   "last_6_months": "Últimos 6 meses",
   "last_12_months": "Últimos 12 meses",
   "calendar_events_disabled_video_limitation": "Quando os eventos de calendário estão desativados, não é possível gerar links de reunião para aplicações cuja geração de links está associada à criação de eventos de calendário, por exemplo, Google Meet e Microsoft Teams. Outras aplicações de vídeo como Cal Video continuarão a funcionar.",
+  "choose_for_me": "Escolha por mim",
   "ADD_NEW_STRINGS_ABOVE_THIS_LINE_TO_PREVENT_MERGE_CONFLICTS": "↑↑↑↑↑↑↑↑↑↑↑↑↑ Add your new strings above here ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑"
 }

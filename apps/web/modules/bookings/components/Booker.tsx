@@ -25,11 +25,14 @@ import {
   PUBLIC_INVALIDATE_AVAILABLE_SLOTS_ON_BOOKING_FORM,
 } from "@calcom/lib/constants";
 import { useCompatSearchParams } from "@calcom/lib/hooks/useCompatSearchParams";
+import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { BookerLayouts } from "@calcom/prisma/zod-utils";
 import classNames from "@calcom/ui/classNames";
+import { Button } from "@calcom/ui/components/button";
 import { DialogContent } from "@calcom/ui/components/dialog";
 import { UnpublishedEntity } from "@calcom/ui/components/unpublished-entity";
 import TurnstileCaptcha from "@calcom/web/modules/auth/components/Turnstile";
+import { pickRandomSlot } from "@calcom/web/modules/bookings/utils/pickRandomSlot";
 import { useSkipConfirmStep } from "@calcom/web/modules/bookings/hooks/useSkipConfirmStep";
 import { useNonEmptyScheduleDays } from "@calcom/web/modules/schedules/hooks/useNonEmptyScheduleDays";
 import { AnimatePresence, LazyMotion, m } from "framer-motion";
@@ -89,6 +92,7 @@ const BookerComponent = ({
   showNoAvailabilityDialog,
 }: BookerProps & WrappedBookerProps): JSX.Element | null => {
   const searchParams = useCompatSearchParams();
+  const { t } = useLocale();
   const isPlatformBookerEmbed = useIsPlatformBookerEmbed();
   const [bookerState, setBookerState] = useBookerStoreContext(
     (state) => [state.state, state.setState],
@@ -96,6 +100,7 @@ const BookerComponent = ({
   );
 
   const selectedDate = useBookerStoreContext((state) => state.selectedDate);
+  const setSelectedDate = useBookerStoreContext((state) => state.setSelectedDate);
 
   const [isSlotSelectionModalVisible, setIsSlotSelectionModalVisible] = useBookerStoreContext(
     (state) => [state.isSlotSelectionModalVisible, state.setIsSlotSelectionModalVisible],
@@ -215,6 +220,30 @@ const BookerComponent = ({
       setIsSlotSelectionModalVisible(false);
     }
   };
+
+  const onChooseForMe = () => {
+    const picked = pickRandomSlot(schedule?.data?.slots);
+    if (!picked) return;
+    const { date, slot } = picked;
+
+    if (PUBLIC_INVALIDATE_AVAILABLE_SLOTS_ON_BOOKING_FORM) {
+      schedule?.invalidate();
+    }
+    setSelectedDate({ date, omitUpdatingParams: false });
+    // seated event data must be set before the timeslot, same as in AvailableTimeSlots
+    if (event.data?.seatsPerTimeSlot) {
+      setSeatedEventData({
+        seatsPerTimeSlot: event.data.seatsPerTimeSlot,
+        attendees: slot.attendees ?? 0,
+        bookingUid: slot.bookingUid,
+        showAvailableSeatsCount: event.data.seatsShowAvailabilityCount,
+      });
+    }
+    onAvailableTimeSlotSelect(slot.time);
+  };
+
+  const canChooseForMe = !isPlatform && !hideEventTypeDetails;
+  const hasChoosableSlot = !!pickRandomSlot(schedule?.data?.slots);
 
   updateEmbedBookerState({ bookerState, slotsQuery: schedule });
 
@@ -427,6 +456,19 @@ const BookerComponent = ({
                     hideEventTypeDetails={hideEventTypeDetails}>
                     {eventMetaChildren}
                   </EventMeta>
+                )}
+                {canChooseForMe && (
+                  <div className="px-5 pt-3">
+                    <Button
+                      type="button"
+                      color="secondary"
+                      className="w-full justify-center"
+                      data-testid="choose-for-me"
+                      disabled={schedule.isPending || !hasChoosableSlot}
+                      onClick={onChooseForMe}>
+                      {t("choose_for_me")}
+                    </Button>
+                  </div>
                 )}
                 {layout !== BookerLayouts.MONTH_VIEW &&
                   !(layout === "mobile" && bookerState === "booking") && (

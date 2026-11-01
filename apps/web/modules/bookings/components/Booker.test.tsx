@@ -263,4 +263,24 @@ describe("Booker", () => {
       await expect(bookEventForm).toHaveAttribute("data-unavailable", "true");
     });
   });
+
+  describe("Choose for me button", () => {
+    it("renders and selects a slot on click", () => {
+      const setSelectedTimeslot = vi.fn();
+      const props = { ...defaultProps, slots: { ...defaultProps.slots, setSelectedTimeslot } };
+      render(<Booker {...(props as unknown as BookerProps & WrappedBookerProps)} />, {
+        mockStore: { state: "booking" },
+      });
+      screen.getByRole("button", { name: /choose_for_me/i }).click();
+      expect(setSelectedTimeslot).toHaveBeenCalledWith("2024-01-01T11:00:00Z");
+    });
+
+    it("does not render without slots", () => {
+      const props = { ...defaultProps, schedule: { ...mockSchedule, data: undefined } };
+      render(<Booker {...(props as unknown as BookerProps & WrappedBookerProps)} />, {
+        mockStore: { state: "selecting_date" },
+      });
+      expect(screen.queryByRole("button", { name: /choose_for_me/i })).not.toBeInTheDocument();
+    });
+  });
 });

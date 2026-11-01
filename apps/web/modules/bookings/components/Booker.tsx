@@ -42,6 +42,7 @@ import type { WrappedBookerProps } from "../types";
 import { AvailableTimeSlots } from "./AvailableTimeSlots";
 import { BookEventForm } from "./BookEventForm";
 import { BookFormAsModal } from "./BookEventForm/BookFormAsModal";
+import { ChooseForMeButton } from "./ChooseForMeButton";
 import { DatePicker } from "./DatePicker";
 import { DryRunMessage } from "./DryRunMessage";
 import { EventMeta } from "./EventMeta";
@@ -428,6 +429,20 @@ const BookerComponent = ({
                     {eventMetaChildren}
                   </EventMeta>
                 )}
+                {!event.isPending &&
+                  schedule?.data?.slots &&
+                  (bookerState === "selecting_date" ||
+                    bookerState === "selecting_time" ||
+                    bookerState === "booking") && (
+                    <div className="px-5 py-3">
+                      <ChooseForMeButton
+                        slots={schedule.data.slots}
+                        selectedTimeslot={selectedTimeslot}
+                        unavailableTimeSlots={unavailableTimeSlots}
+                        onSelect={onAvailableTimeSlotSelect}
+                      />
+                    </div>
+                  )}
                 {layout !== BookerLayouts.MONTH_VIEW &&
                   !(layout === "mobile" && bookerState === "booking") && (
                     <div className="mt-auto px-5 py-3">
